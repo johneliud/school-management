@@ -114,3 +114,76 @@ fn test_make_payment() {
 
     assert_eq!(student.total_paid, amount);
 }
+
+#[test]
+fn test_update_student_class() {
+    let setup_result = setup();
+
+    let name = String::from_str(&setup_result.env, "Sib");
+
+    setup_result
+        .client
+        .register_student(&setup_result.student_wallet, &name, &Class::College);
+
+    let student_id = 1u64;
+
+    setup_result
+        .client
+        .update_student_class(&student_id, &Class::HighSchool);
+
+    let student = setup_result.client.get_student(&student_id);
+
+    assert!(matches!(student.class_name, Class::HighSchool));
+}
+
+#[test]
+fn test_get_student_payment_history() {
+    let setup_result = setup();
+
+    let name = String::from_str(&setup_result.env, "Sib");
+
+    setup_result
+        .client
+        .register_student(&setup_result.student_wallet, &name, &Class::College);
+
+    let student_id = 1u64;
+
+    let amount1 = 500_000i128;
+    let amount2 = 750_000i128;
+
+    setup_result
+        .token_client
+        .mint(&setup_result.student_wallet, &(amount1 + amount2));
+
+    setup_result.client.make_payment(&student_id, &amount1);
+    setup_result.client.make_payment(&student_id, &amount2);
+
+    let history = setup_result
+        .client
+        .get_student_payment_history(&student_id);
+
+    assert_eq!(history.len(), 2);
+    assert_eq!(history.get(0).unwrap().amount, amount1);
+    assert_eq!(history.get(1).unwrap().amount, amount2);
+}
+
+#[test]
+fn test_remove_student() {
+    let setup_result = setup();
+
+    let name = String::from_str(&setup_result.env, "Sib");
+
+    setup_result
+        .client
+        .register_student(&setup_result.student_wallet, &name, &Class::College);
+
+    let student_id = 1u64;
+
+    let result = setup_result.client.try_remove_student(&student_id);
+
+    assert!(result.is_ok());
+
+    let get_result = setup_result.client.try_get_student(&student_id);
+
+    assert!(get_result.is_err());
+}
